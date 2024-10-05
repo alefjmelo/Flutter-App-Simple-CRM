@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pontodofrango/screens/navigation_screen.dart';
-import '../../models/client_model.dart';
-import '../../models/clientbill_model.dart';
-import '../../models/paymenthistory_model.dart';
-import '../../utils/bills_operations.dart';
-import '../../utils/payment_history_operations.dart';
+import '../models/client_model.dart';
+import '../models/clientbill_model.dart';
+import '../models/paymenthistory_model.dart';
+import '../utils/bills_operations.dart';
+import '../utils/payment_history_operations.dart';
 
 class ClientDetailsScreen extends StatelessWidget {
   final Client client;
