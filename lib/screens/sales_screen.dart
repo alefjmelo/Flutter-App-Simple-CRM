@@ -149,11 +149,25 @@ class SalesScreenState extends State<SalesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.grey[800],
-      body: SafeArea(
-        child: Padding(
+    return SafeArea(
+      child: Scaffold(
+        appBar: PreferredSize(
+            preferredSize: Size.fromHeight(100),
+            child: Container(
+              padding: EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.grey[700],
+              ),
+              child: Text('Vendas',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 26)),
+            )),
+        resizeToAvoidBottomInset: false,
+        backgroundColor: Colors.grey[800],
+        body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -388,7 +402,7 @@ class SalesScreenState extends State<SalesScreen> {
         TextField(
           controller: _descriptionController,
           decoration: InputDecoration(
-            hintText: 'Descrição da Venda',
+            hintText: 'Descrição da venda',
             hintStyle:
                 TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 18),
             border: InputBorder.none,

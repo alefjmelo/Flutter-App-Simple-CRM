@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:pontodofrango/utils/client_operations.dart';
 import '../../models/client_model.dart';
-import 'floating_button.dart';
+import 'manager_dialog.dart';
 
-class ClientScreen extends StatefulWidget {
+class ClientsScreen extends StatefulWidget {
   final Function(Client) onClientSelected;
-  const ClientScreen({super.key, required this.onClientSelected});
+  const ClientsScreen({super.key, required this.onClientSelected});
 
   @override
-  State<ClientScreen> createState() => _ClientScreenState();
+  State<ClientsScreen> createState() => _ClientScreenState();
 }
 
-class _ClientScreenState extends State<ClientScreen> {
+class _ClientScreenState extends State<ClientsScreen> {
   late Future<List<Client>> _clientsFuture;
-  Client? _selectedClient;
-
+  late bool isDialogOpen = false;
   @override
   void initState() {
     super.initState();
@@ -30,36 +29,57 @@ class _ClientScreenState extends State<ClientScreen> {
   void _refreshClientList() {
     setState(() {
       _clientsFuture = _loadClients();
-      _selectedClient = null;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[800],
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Lista de Clientes',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
+    return SafeArea(
+      child: Scaffold(
+        appBar: PreferredSize(
+            preferredSize: Size.fromHeight(100),
+            child: Container(
+              padding: EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.grey[700],
               ),
-            ),
-            Expanded(child: _buildClientListView()),
-          ],
-        ),
+              child: Text('Lista de Clientes',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 26)),
+            )),
+        backgroundColor: Colors.grey[800],
+        body: Expanded(child: _buildClientListView()),
+        floatingActionButton: isDialogOpen ? null : _buildFloatingButton(),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
-      floatingActionButton: _selectedClient == null
-          ? FloatingButton(refreshClientList: _refreshClientList)
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+
+  Widget _buildFloatingButton() {
+    return FloatingActionButton(
+      onPressed: () {
+        setState(() {
+          isDialogOpen = true;
+        });
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return ClientManagerDialogs(onClientChanged: _refreshClientList);
+          },
+        ).then((_) {
+          setState(() {
+            isDialogOpen = false;
+          });
+        });
+      },
+      backgroundColor: Colors.black,
+      child: Icon(
+        Icons.add,
+        color: Colors.white,
+      ),
     );
   }
 

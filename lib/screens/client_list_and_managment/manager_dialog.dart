@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_masked_text2/flutter_masked_text2.dart';
 import 'package:pontodofrango/utils/client_operations.dart';
 import 'package:pontodofrango/utils/showCustomOverlay.dart';
@@ -37,15 +38,88 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
     });
   }
 
+  Future<void> _handleAddClient() async {
+    String name = _nameController.text;
+    String phoneNumber = _phoneController.text;
+    String address = _addressController.text;
+
+    if (_validateInputs(name, phoneNumber, address)) {
+      await addClient(name, phoneNumber, address);
+      if (!mounted) return; // Check if the widget is still mounted
+      widget.onClientChanged();
+      Navigator.of(context).pop();
+      showCustomOverlay(context, 'Cliente Adicionado!');
+    }
+  }
+
+  Future<void> _handleRemoveClient() async {
+    if (_selectedClientCode != 0) {
+      await removeClient(_selectedClientCode);
+      if (!mounted) return; // Check if the widget is still mounted
+      widget.onClientChanged();
+      Navigator.of(context).pop();
+      showCustomOverlay(context, 'Cliente Removido!');
+    }
+  }
+
+  Future<void> _handleSearch() async {
+    List<Client> allClients = await fetchClients();
+    setState(() {
+      _filteredClients = allClients
+          .where((client) =>
+              client.nome.toLowerCase().contains(_searchText.toLowerCase()))
+          .toList();
+    });
+  }
+
+  bool _validateInputs(String name, String phoneNumber, String address) {
+    bool isValid = true;
+
+    setState(() {
+      _nameErrorMessage = name.isEmpty ? 'Nome não pode estar vazio' : null;
+      _phoneErrorMessage = !_isValidPhoneNumber(phoneNumber)
+          ? 'Número Incorreto. Tente novamente'
+          : null;
+      _addressErrorMessage =
+          address.isEmpty ? 'Endereço não pode estar vazio' : null;
+    });
+
+    isValid = _nameErrorMessage == null &&
+        _phoneErrorMessage == null &&
+        _addressErrorMessage == null;
+
+    return isValid;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.black.withOpacity(0.88),
+      child: Padding(
+        padding: const EdgeInsets.all(15.0),
+        child: SizedBox(
+          width: double.maxFinite,
+          child: _dialogState == 'add'
+              ? _buildAddDialog()
+              : _dialogState == 'remove'
+                  ? _buildRemoveDialog()
+                  : _buildInitialDialog(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildAddDialog() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildDialogHeader('Adicionar Cliente'),
-        _buildTextField(_nameController, 'Nome do Cliente', _nameErrorMessage),
+        _buildTextField(
+            _nameController, 'Nome do Cliente', _nameErrorMessage, 20),
         _buildTextField(_phoneController, 'Nº de Celular', _phoneErrorMessage,
-            TextInputType.phone),
-        _buildTextField(_addressController, 'Endereço', _addressErrorMessage),
+            null, TextInputType.phone),
+        _buildTextField(
+            _addressController, 'Endereço', _addressErrorMessage, 50),
         SizedBox(height: 10),
         _buildActionButton('Concluir', _handleAddClient),
       ],
@@ -100,12 +174,13 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
 
   Widget _buildTextField(
       TextEditingController controller, String hint, String? errorMessage,
-      [TextInputType? keyboardType]) {
+      [int? textSizeLimit, TextInputType? keyboardType]) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextField(
           controller: controller,
+          inputFormatters: [LengthLimitingTextInputFormatter(textSizeLimit)],
           keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
@@ -216,77 +291,6 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       child: Text(label, style: TextStyle(color: Colors.black, fontSize: 18)),
-    );
-  }
-
-  Future<void> _handleAddClient() async {
-    String name = _nameController.text;
-    String phoneNumber = _phoneController.text;
-    String address = _addressController.text;
-
-    if (_validateInputs(name, phoneNumber, address)) {
-      await addClient(name, phoneNumber, address);
-      if (!mounted) return; // Check if the widget is still mounted
-      widget.onClientChanged();
-      Navigator.of(context).pop();
-      showCustomOverlay(context, 'Cliente Adicionado!');
-    }
-  }
-
-  Future<void> _handleRemoveClient() async {
-    if (_selectedClientCode != 0) {
-      await removeClient(_selectedClientCode);
-      if (!mounted) return; // Check if the widget is still mounted
-      widget.onClientChanged();
-      Navigator.of(context).pop();
-      showCustomOverlay(context, 'Cliente Removido!');
-    }
-  }
-
-  Future<void> _handleSearch() async {
-    List<Client> allClients = await fetchClients();
-    setState(() {
-      _filteredClients = allClients
-          .where((client) =>
-              client.nome.toLowerCase().contains(_searchText.toLowerCase()))
-          .toList();
-    });
-  }
-
-  bool _validateInputs(String name, String phoneNumber, String address) {
-    bool isValid = true;
-
-    setState(() {
-      _nameErrorMessage = name.isEmpty ? 'Nome não pode estar vazio' : null;
-      _phoneErrorMessage = !_isValidPhoneNumber(phoneNumber)
-          ? 'Número Incorreto. Tente novamente'
-          : null;
-      _addressErrorMessage =
-          address.isEmpty ? 'Endereço não pode estar vazio' : null;
-    });
-
-    isValid = _nameErrorMessage == null &&
-        _phoneErrorMessage == null &&
-        _addressErrorMessage == null;
-
-    return isValid;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.black.withOpacity(0.88),
-      child: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: SizedBox(
-          width: double.maxFinite,
-          child: _dialogState == 'add'
-              ? _buildAddDialog()
-              : _dialogState == 'remove'
-                  ? _buildRemoveDialog()
-                  : _buildInitialDialog(),
-        ),
-      ),
     );
   }
 }
