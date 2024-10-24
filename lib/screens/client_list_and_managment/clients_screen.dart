@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:pontodofrango/utils/client_operations.dart';
 import '../../models/client_model.dart';
+import 'client_details_screen.dart';
 import 'manager_dialog.dart';
 
 class ClientsScreen extends StatefulWidget {
-  final Function(Client) onClientSelected;
-  const ClientsScreen({super.key, required this.onClientSelected});
+  const ClientsScreen({super.key});
 
   @override
   State<ClientsScreen> createState() => _ClientScreenState();
@@ -51,7 +51,11 @@ class _ClientScreenState extends State<ClientsScreen> {
                       fontSize: 26)),
             )),
         backgroundColor: Colors.grey[800],
-        body: Expanded(child: _buildClientListView()),
+        body: Column(
+          children: [
+            Expanded(child: _buildClientListView()),
+          ],
+        ),
         floatingActionButton: isDialogOpen ? null : _buildFloatingButton(),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
@@ -161,7 +165,12 @@ class _ClientScreenState extends State<ClientsScreen> {
           ],
         ),
       ),
-      onTap: () => widget.onClientSelected(client),
+      onTap: () {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => ClientDetailsScreen(client: client)));
+      },
     );
   }
 }

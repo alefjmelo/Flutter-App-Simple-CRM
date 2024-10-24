@@ -31,7 +31,9 @@ class ClientDataBase {
         code INTEGER PRIMARY KEY,
         nome TEXT,
         numero TEXT,
-        endereco TEXT
+        endereco TEXT,
+        creditoConta REAL DEFAULT 0.0,
+        saldoDevedor REAL DEFAULT 0.0
       )
     ''');
   }
@@ -66,5 +68,34 @@ class ClientDataBase {
       where: 'code = ?',
       whereArgs: [code],
     );
+  }
+
+  Future<void> updateClientBalance(
+      int clientCode, double creditoConta, double saldoDevedor) async {
+    Database db = await database;
+    await db.update(
+      'clients',
+      {
+        'creditoConta': creditoConta,
+        'saldoDevedor': saldoDevedor,
+      },
+      where: 'code = ?',
+      whereArgs: [clientCode],
+    );
+  }
+
+  Future<Client> getClientWithBalances(int code) async {
+    Database db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'clients',
+      where: 'code = ?',
+      whereArgs: [code],
+    );
+
+    if (maps.isEmpty) {
+      throw Exception('Client not found');
+    }
+
+    return Client.fromMap(maps.first);
   }
 }

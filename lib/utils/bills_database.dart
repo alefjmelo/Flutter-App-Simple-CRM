@@ -73,4 +73,13 @@ class BillDatabaseHelper {
       whereArgs: [clientCode, description, date],
     );
   }
+
+  Future<int> deleteAllBillsForClient(int clientCode) async {
+    Database db = await database;
+    return await db.delete(
+      'bills',
+      where: 'clientCode = ?',
+      whereArgs: [clientCode],
+    );
+  }
 }

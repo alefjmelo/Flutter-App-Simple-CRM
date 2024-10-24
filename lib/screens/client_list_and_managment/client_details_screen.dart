@@ -4,80 +4,106 @@ import '../../models/client_model.dart';
 import '../../models/clientbill_model.dart';
 import '../../models/paymenthistory_model.dart';
 import '../../utils/bills_operations.dart';
+import '../../utils/client_operations.dart';
 import '../../utils/payment_history_operations.dart';
+import 'payment_screen.dart';
 
-class ClientDetailsScreen extends StatelessWidget {
+class ClientDetailsScreen extends StatefulWidget {
   final Client client;
-  final VoidCallback onBack;
 
   const ClientDetailsScreen({
     super.key,
     required this.client,
-    required this.onBack,
   });
 
   @override
+  State<ClientDetailsScreen> createState() => _ClientDetailsScreenState();
+}
+
+class _ClientDetailsScreenState extends State<ClientDetailsScreen> {
+  late Client currentClient;
+
+  @override
+  void initState() {
+    super.initState();
+    currentClient = widget.client;
+    _refreshClientData();
+  }
+
+  Future<void> _refreshClientData() async {
+    try {
+      final updatedClient = await getClientWithBalances(widget.client.code);
+      setState(() {
+        currentClient = updatedClient;
+      });
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation1, animation2) =>
-                            NavigationScreen(),
-                        transitionDuration: Duration.zero,
-                        reverseTransitionDuration: Duration.zero,
-                      ),
-                    );
-                  },
+    return SafeArea(
+      child: Scaffold(
+        backgroundColor: Colors.grey[800],
+        appBar: AppBar(
+          backgroundColor: Colors.grey[700],
+          title: const Text(
+            'Detalhes da Conta',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24),
+          ),
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back,
+              color: Colors.white,
+              weight: 2.0,
+            ),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NavigationScreen(),
                 ),
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      'Detalhes da Conta',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+              );
+            },
+          ),
+        ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.client.nome,
+                  style: const TextStyle(
+                    fontSize: 35,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
+                Text(
+                  'Endereço: ${widget.client.endereco}',
+                  style: const TextStyle(fontSize: 18, color: Colors.white),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Número: ${widget.client.numero}',
+                  style: const TextStyle(fontSize: 18, color: Colors.white),
+                ),
+                const SizedBox(height: 20),
+                _buildPaymentHistoryButton(context),
+                const SizedBox(height: 20),
+                SizedBox(
+                  height: 400,
+                  child: _buildBillsSection(),
+                ),
+                const SizedBox(height: 20),
+                _buildActionButtons(context),
               ],
             ),
-            Text(
-              client.nome,
-              style: const TextStyle(
-                fontSize: 40,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            Text(
-              'Endereço: ${client.endereco}',
-              style: const TextStyle(fontSize: 18, color: Colors.white),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Número: ${client.numero}',
-              style: const TextStyle(fontSize: 18, color: Colors.white),
-            ),
-            const SizedBox(height: 20),
-            _buildPaymentHistoryButton(context),
-            const SizedBox(height: 20),
-            _buildBillsSection(),
-            const SizedBox(height: 20),
-            _buildActionButtons(),
-          ],
+          ),
         ),
       ),
     );
@@ -107,95 +133,111 @@ class ClientDetailsScreen extends StatelessWidget {
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.black,
-          child: Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    IconButton(
-                      color: Colors.white,
-                      icon: Icon(Icons.arrow_back),
-                      onPressed: () {
-                        Navigator.pop(context);
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(15.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      IconButton(
+                        color: Colors.white,
+                        icon: Icon(Icons.arrow_back),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                      const Text(
+                        'Histórico de Pagamentos',
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                    ],
+                  ),
+                  Flexible(
+                    child: FutureBuilder<List<PaymentHistory>>(
+                      future: fetchPaymentHistoryByClient(widget.client.code),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        } else if (snapshot.hasError) {
+                          return Center(
+                              child: Text('Error: ${snapshot.error}'));
+                        } else if (!snapshot.hasData ||
+                            snapshot.data!.isEmpty) {
+                          return Center(
+                              child: Container(
+                            constraints: BoxConstraints(minHeight: 70),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Sem histórico de pagamentos.',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ));
+                        } else {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[800],
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            width: double.maxFinite,
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: snapshot.data!.length,
+                                itemBuilder: (context, index) {
+                                  final payment = snapshot.data![index];
+                                  return Card(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(0),
+                                    ),
+                                    color: Colors.yellow[100],
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Data: ${payment.paymentDate}'),
+                                          Text(
+                                              'Total da Conta: R\$ ${payment.totalBill.toStringAsFixed(2)}'),
+                                          Text(
+                                              'Valor Pago: R\$ ${payment.amountPaid.toStringAsFixed(2)}'),
+                                          if (payment.totalBill >
+                                              payment.amountPaid)
+                                            Text(
+                                                'Saldo Devedor: R\$ ${(payment.totalBill - payment.amountPaid).toStringAsFixed(2)}'),
+                                          if (payment.amountPaid >
+                                              payment.totalBill)
+                                            Text(
+                                                'Crédito em Conta: R\$ ${(payment.amountPaid - payment.totalBill).toStringAsFixed(2)}'),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+                        }
                       },
                     ),
-                    const Text(
-                      'Histórico de Pagamentos',
-                      style: TextStyle(color: Colors.white, fontSize: 20),
-                    ),
-                  ],
-                ),
-                FutureBuilder<List<PaymentHistory>>(
-                  future: fetchAllPaymentHistories(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (snapshot.hasError) {
-                      return Center(child: Text('Error: ${snapshot.error}'));
-                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return Center(
-                          child: Container(
-                        constraints: BoxConstraints(minHeight: 70),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[800],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Sem histórico de pagamentos.',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ));
-                    } else {
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey[800],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        width: double.maxFinite,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: snapshot.data!.length,
-                            itemBuilder: (context, index) {
-                              final payment = snapshot.data![index];
-                              return Card(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(0),
-                                ),
-                                color: Colors.yellow[100],
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Data: ${payment.paymentDate}'),
-                                      Text(
-                                          'Total da Conta: R\$ ${payment.totalBill.toStringAsFixed(2)}'),
-                                      Text(
-                                          'Valor Pago: R\$ ${payment.amountPaid.toStringAsFixed(2)}'),
-                                      Text(
-                                          'Débito: R\$ ${payment.debit.toStringAsFixed(2)}'),
-                                      Text(
-                                          'Crédito: R\$ ${payment.credit.toStringAsFixed(2)}'),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -215,18 +257,36 @@ class ClientDetailsScreen extends StatelessWidget {
             'NFC-e',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
-          Flexible(
+          SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                    'Crédito em conta: R\$ ${currentClient.creditoConta.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 16)),
+                Text(
+                    'Saldo Devedor: R\$ ${currentClient.saldoDevedor.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 16)),
+              ],
+            ),
+          ),
+          Expanded(
             child: FutureBuilder<List<Bill>>(
-              future: fetchBillsForClient(client.code),
+              future: fetchBillsForClient(widget.client.code),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 } else if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Text(
-                    'Nenhuma conta encontrada para esse cliente.',
-                    textAlign: TextAlign.center,
+                  return Align(
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'Nenhuma conta encontrada para esse cliente.',
+                      style: TextStyle(fontSize: 14),
+                    ),
                   );
                 } else {
                   return Column(
@@ -307,7 +367,7 @@ class ClientDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -321,7 +381,28 @@ class ClientDetailsScreen extends StatelessWidget {
             ),
           ),
           onPressed: () {
-            // Add your "Adicionar" button logic here
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FutureBuilder<List<Bill>>(
+                  future: fetchBillsForClient(widget.client.code),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return PaymentScreen(client: widget.client, totalBill: 0);
+                    } else {
+                      final total = snapshot.data!
+                          .fold<double>(0, (sum, item) => sum + item.value);
+                      return PaymentScreen(
+                          client: widget.client, totalBill: total);
+                    }
+                  },
+                ),
+              ),
+            );
           },
           child: Text(
             'Pagar',

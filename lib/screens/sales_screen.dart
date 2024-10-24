@@ -67,6 +67,7 @@ class SalesScreenState extends State<SalesScreen> {
     super.initState();
     _fetchClients();
     _descriptionController.addListener(_updateLineWidth);
+    _descriptionController.addListener(_convertDescriptionToUpperCase);
     _valueController.addListener(_updateHintVisibility);
     _resetSelectedClient();
   }
@@ -75,9 +76,17 @@ class SalesScreenState extends State<SalesScreen> {
   void dispose() {
     _descriptionController.removeListener(_updateLineWidth);
     _valueController.removeListener(_updateHintVisibility);
+    _descriptionController.removeListener(_convertDescriptionToUpperCase);
     _valueController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  void _convertDescriptionToUpperCase() {
+    _descriptionController.value = _descriptionController.value.copyWith(
+      text: _descriptionController.text.toUpperCase(),
+      selection: _descriptionController.selection,
+    );
   }
 
   void _onKeyTap(String value) {

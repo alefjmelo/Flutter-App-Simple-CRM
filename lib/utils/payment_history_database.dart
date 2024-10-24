@@ -32,8 +32,6 @@ class PaymentHistoryDatabase {
         paymentDate TEXT,
         totalBill REAL,
         amountPaid REAL,
-        debit REAL,
-        credit REAL,
         FOREIGN KEY(clientCode) REFERENCES clients(code)
       )
     ''');
@@ -42,11 +40,6 @@ class PaymentHistoryDatabase {
   Future<int> insertPaymentHistory(Map<String, dynamic> payment) async {
     Database db = await database;
     return await db.insert('payment_history', payment);
-  }
-
-  Future<List<Map<String, dynamic>>> queryAllRows() async {
-    Database db = await database;
-    return await db.query('payment_history');
   }
 
   Future<List<Map<String, dynamic>>> getPaymentHistoryForClient(

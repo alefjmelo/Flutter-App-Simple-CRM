@@ -27,3 +27,8 @@ Future<void> modifyBill(Bill bill) async {
 Future<void> removeBill(int clientCode, String description, String date) async {
   await BillDatabaseHelper().deleteBill(clientCode, description, date);
 }
+
+// Delete all bills
+Future<void> removeAllBillsForClient(int clientCode) async {
+  await BillDatabaseHelper().deleteAllBillsForClient(clientCode);
+}

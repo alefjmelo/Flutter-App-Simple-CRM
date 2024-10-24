@@ -1,6 +1,3 @@
-// Insert a new client
-// ignore_for_file: collection_methods_unrelated_type
-
 import 'dart:math';
 
 import '../models/client_model.dart';
@@ -44,4 +41,16 @@ Future<void> modifyClient(Client client) async {
 // Delete a client
 Future<void> removeClient(int code) async {
   await ClientDataBase().deleteClient(code);
+}
+
+// Update client balance
+Future<void> updateClientBalance(
+    int clientCode, double creditoConta, double saldoDevedor) async {
+  await ClientDataBase()
+      .updateClientBalance(clientCode, creditoConta, saldoDevedor);
+}
+
+// Get client with balances
+Future<Client> getClientWithBalances(int code) async {
+  return await ClientDataBase().getClientWithBalances(code);
 }
