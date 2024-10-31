@@ -34,3 +34,18 @@ Future<void> modifyPaymentHistory(PaymentHistory paymentHistory) async {
 Future<void> removePaymentHistory(int id) async {
   await PaymentHistoryDatabase.instance.deletePaymentHistory(id);
 }
+
+// Retrieve total amount for the current week
+Future<Map<String, double>> getTotalAmountForWeekPayments() async {
+  return await PaymentHistoryDatabase.instance.getTotalAmountForWeek();
+}
+
+// Retrieve total amount for a specific month
+Future<Map<String, double>> getTotalAmountForMonthPayments(int month) async {
+  return await PaymentHistoryDatabase.instance.getTotalAmountForMonth(month);
+}
+
+// Retrieve total amount for a specific year
+Future<Map<String, double>> getTotalAmountForYearPayments(int year) async {
+  return await PaymentHistoryDatabase.instance.getTotalAmountForYear(year);
+}

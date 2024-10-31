@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../utils/bills_operations.dart';
+import '../utils/payment_history_operations.dart';
 
 class ChartsScreen extends StatefulWidget {
   const ChartsScreen({super.key});
@@ -31,6 +32,23 @@ class _ChartsScreenState extends State<ChartsScreen> {
     } else if (_selectedChartType == 'Pagamentos') {
       await _fetchPaymentsChartData();
     }
+  }
+
+  Future<void> _fetchPaymentsChartData() async {
+    Map<String, double> data;
+    if (_selectedPeriod == 'Semana') {
+      data = await getTotalAmountForWeekPayments();
+    } else if (_selectedPeriod == 'Mês') {
+      data = await getTotalAmountForMonthPayments(_selectedMonth);
+      data = _groupDataByMonthRanges(data);
+    } else {
+      data = await getTotalAmountForYearPayments(_selectedYear);
+    }
+
+    setState(() {
+      _barChartData = _generateBarChartData(data);
+      _totalAmount = data.values.fold(0.0, (sum, item) => sum + item);
+    });
   }
 
   Future<void> _fetchBillsChartData() async {
@@ -84,25 +102,6 @@ class _ChartsScreenState extends State<ChartsScreen> {
     });
 
     return groupedData;
-  }
-
-  Future<void> _fetchPaymentsChartData() async {
-    // Implement the logic to fetch and parse data for the Payments chart
-    // For now, we'll use dummy data
-    Map<String, double> data = {
-      '2023-01': 100.0,
-      '2023-02': 200.0,
-      '2023-03': 150.0,
-      '2023-04': 300.0,
-      '2023-05': 250.0,
-      '2023-06': 350.0,
-      '2023-07': 400.0,
-    };
-
-    setState(() {
-      _barChartData = _generateBarChartData(data);
-      _totalAmount = data.values.fold(0.0, (sum, item) => sum + item);
-    });
   }
 
   List<BarChartGroupData> _generateBarChartData(Map<String, double> data) {
