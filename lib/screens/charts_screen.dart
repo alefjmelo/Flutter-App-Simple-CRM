@@ -17,6 +17,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
   int _selectedMonth = DateTime.now().month;
   int _selectedYear = DateTime.now().year;
   List<BarChartGroupData> _barChartData = [];
+  String _errorMessage = '';
 
   @override
   void initState() {
@@ -76,7 +77,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
           groupedData['25-31'] = groupedData['25-31']! + value;
         }
       } catch (e) {
-        print('Error parsing date: $e');
+        setState(() {
+          _errorMessage = 'Erro ao agrupar os dados por intervalos de mês.';
+        });
       }
     });
 
@@ -109,7 +112,17 @@ class _ChartsScreenState extends State<ChartsScreen> {
       barGroups.add(
         BarChartGroupData(
           x: index,
-          barRods: [BarChartRodData(toY: value, color: Colors.yellow)],
+          barRods: [
+            BarChartRodData(
+              toY: value,
+              color: Colors.yellow,
+              width: 15,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(3),
+                topRight: Radius.circular(3),
+              ),
+            ),
+          ],
         ),
       );
       index++;
@@ -296,6 +309,11 @@ class _ChartsScreenState extends State<ChartsScreen> {
                 ),
               ),
               SizedBox(height: 20),
+              if (_errorMessage.isNotEmpty)
+                Text(
+                  _errorMessage,
+                  style: TextStyle(color: Colors.red, fontSize: 16),
+                ),
               Flexible(
                 child: BarChart(
                   BarChartData(
