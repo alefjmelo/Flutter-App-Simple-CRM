@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/clientbill_model.dart';
@@ -54,16 +55,6 @@ class BillDatabaseHelper {
     });
   }
 
-  Future<int> updateBill(Bill bill) async {
-    Database db = await database;
-    return await db.update(
-      'bills',
-      bill.toMap(),
-      where: 'clientCode = ? AND description = ? AND date = ?',
-      whereArgs: [bill.clientCode, bill.description, bill.date],
-    );
-  }
-
   Future<int> deleteBill(
       int clientCode, String description, String date) async {
     Database db = await database;
@@ -81,5 +72,87 @@ class BillDatabaseHelper {
       where: 'clientCode = ?',
       whereArgs: [clientCode],
     );
+  }
+
+  Future<Map<String, double>> getTotalAmountForWeek() async {
+    Database db = await database;
+    DateTime now = DateTime.now();
+    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+
+    Map<String, double> dailyTotals = {};
+
+    for (int i = 0; i < 7; i++) {
+      DateTime day = startOfWeek.add(Duration(days: i));
+      String dayStr = DateFormat('dd/MM/yyyy').format(day);
+      final List<Map<String, dynamic>> result = await db.rawQuery('''
+        SELECT SUM(value) as totalAmount
+        FROM bills
+        WHERE date = ?
+      ''', [dayStr]);
+
+      dailyTotals[dayStr] =
+          result.isNotEmpty && result[0]['totalAmount'] != null
+              ? result[0]['totalAmount'] as double
+              : 0.0;
+    }
+
+    return dailyTotals;
+  }
+
+  Future<Map<String, double>> getTotalAmountForMonth(int month) async {
+    Database db = await database;
+    DateTime now = DateTime.now();
+    DateTime startOfMonth = DateTime(now.year, month, 1);
+    DateTime endOfMonth = DateTime(now.year, month + 1, 0);
+
+    Map<String, double> dailyTotals = {};
+
+    for (int i = 0; i < endOfMonth.day; i++) {
+      DateTime day = startOfMonth.add(Duration(days: i));
+      String dayStr = DateFormat('dd/MM/yyyy').format(day);
+      final List<Map<String, dynamic>> result = await db.rawQuery('''
+        SELECT SUM(value) as totalAmount
+        FROM bills
+        WHERE date = ?
+      ''', [dayStr]);
+
+      dailyTotals[dayStr] =
+          result.isNotEmpty && result[0]['totalAmount'] != null
+              ? result[0]['totalAmount'] as double
+              : 0.0;
+    }
+
+    return dailyTotals;
+  }
+
+  Future<Map<String, double>> getTotalAmountForYear(int year) async {
+    Database db = await database;
+    Map<String, double> monthlyTotals = {};
+
+    // Initialize monthly totals for all months
+    for (int month = 1; month <= 12; month++) {
+      String monthName =
+          DateFormat('MMMM', 'pt_BR').format(DateTime(year, month, 1));
+      monthlyTotals[monthName] = 0.0;
+    }
+
+    final List<Map<String, dynamic>> result = await db.rawQuery('''
+    SELECT date, SUM(value) as totalAmount
+    FROM bills
+    WHERE SUBSTR(date, 7, 4) = ?
+    GROUP BY date
+  ''', [year.toString()]);
+
+    for (var row in result) {
+      String dateStr = row['date'];
+      double totalAmount = row['totalAmount'] ?? 0.0;
+      DateTime date = DateFormat('dd/MM/yyyy').parse(dateStr);
+      String monthName =
+          DateFormat('MMMM', 'pt_BR').format(DateTime(year, date.month, 1));
+      monthlyTotals[monthName] =
+          (monthlyTotals[monthName] ?? 0.0) + totalAmount;
+    }
+
+    return monthlyTotals;
   }
 }

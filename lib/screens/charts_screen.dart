@@ -1,18 +1,7 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-
-class ChartScreen {
-  final int currentYear = DateTime.now().year;
-  final List<String> _yearOptions;
-
-  ChartScreen() : _yearOptions = _generateYearOptions();
-
-  static List<String> _generateYearOptions() {
-    int currentYear = DateTime.now().year;
-    return List.generate(
-        currentYear - 2023 + 1, (index) => (2023 + index).toString());
-  }
-}
+import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
+import '../utils/bills_operations.dart';
 
 class ChartsScreen extends StatefulWidget {
   const ChartsScreen({super.key});
@@ -22,232 +11,276 @@ class ChartsScreen extends StatefulWidget {
 }
 
 class _ChartsScreenState extends State<ChartsScreen> {
-  String _selectedChart = 'Vendas';
+  double _totalAmount = 0.0;
   String _selectedPeriod = 'Semana';
-  String _selectedPeriodItem = '1ª Semana';
-  final int currentYear = DateTime.now().year;
-  static const _chartOptions = ['Vendas', 'Receitas'];
-  static const _periodOptions = ['Semana', 'Mês', 'Ano'];
-
-  final List<String> _weekOptions = [
-    '1ª Semana',
-    '2ª Semana',
-    '3ª Semana',
-    '4ª Semana'
-  ];
-
-  final List<String> _monthOptions = [
-    'Janeiro',
-    'Fevereiro',
-    'Março',
-    'Abril',
-    'Maio',
-    'Junho',
-    'Julho',
-    'Agosto',
-    'Setembro',
-    'Outubro',
-    'Novembro',
-    'Dezembro'
-  ];
-
-  List<String> get _currentPeriodItems {
-    switch (_selectedPeriod) {
-      case 'Semana':
-        return _weekOptions;
-      case 'Mês':
-        return _monthOptions;
-      case 'Ano':
-        return ChartScreen()._yearOptions;
-      default:
-        return [];
-    }
-  }
+  String _selectedChartType = 'Vendas';
+  int _selectedMonth = DateTime.now().month;
+  int _selectedYear = DateTime.now().year;
+  List<BarChartGroupData> _barChartData = [];
 
   @override
   void initState() {
     super.initState();
-    _selectedPeriodItem = _currentPeriodItems.first; // Initialize correctly
+    _fetchChartData();
   }
 
-  List<BarChartGroupData> _generateBarChartData() {
-    return [
-      BarChartGroupData(
-          x: 0, barRods: [BarChartRodData(toY: 5, color: Colors.yellow)]),
-      BarChartGroupData(
-          x: 1, barRods: [BarChartRodData(toY: 6, color: Colors.yellow)]),
-      BarChartGroupData(
-          x: 2, barRods: [BarChartRodData(toY: 8, color: Colors.yellow)]),
-      BarChartGroupData(
-          x: 3, barRods: [BarChartRodData(toY: 7, color: Colors.yellow)]),
-      BarChartGroupData(
-          x: 4, barRods: [BarChartRodData(toY: 10, color: Colors.yellow)]),
-    ];
+  void _fetchChartData() async {
+    if (_selectedChartType == 'Vendas') {
+      await _fetchBillsChartData();
+    } else if (_selectedChartType == 'Pagamentos') {
+      await _fetchPaymentsChartData();
+    }
+  }
+
+  Future<void> _fetchBillsChartData() async {
+    Map<String, double> data;
+    if (_selectedPeriod == 'Semana') {
+      data = await getTotalAmountForWeek();
+    } else if (_selectedPeriod == 'Mês') {
+      data = await getTotalAmountForMonth(_selectedMonth);
+      data = _groupDataByMonthRanges(data);
+    } else {
+      data = await getTotalAmountForYear(_selectedYear);
+    }
+
+    setState(() {
+      _barChartData = _generateBarChartData(data);
+      _totalAmount = data.values.fold(0.0, (sum, item) => sum + item);
+    });
+  }
+
+  Map<String, double> _groupDataByMonthRanges(Map<String, double> data) {
+    Map<String, double> groupedData = {
+      '1-6': 0.0,
+      '7-12': 0.0,
+      '13-18': 0.0,
+      '19-24': 0.0,
+      '25-31': 0.0,
+    };
+
+    DateFormat dateFormat = DateFormat('dd/MM/yyyy');
+
+    data.forEach((key, value) {
+      try {
+        DateTime date = dateFormat.parse(key);
+        int day = date.day;
+        if (day >= 1 && day <= 6) {
+          groupedData['1-6'] = groupedData['1-6']! + value;
+        } else if (day >= 7 && day <= 12) {
+          groupedData['7-12'] = groupedData['7-12']! + value;
+        } else if (day >= 13 && day <= 18) {
+          groupedData['13-18'] = groupedData['13-18']! + value;
+        } else if (day >= 19 && day <= 24) {
+          groupedData['19-24'] = groupedData['19-24']! + value;
+        } else if (day >= 25) {
+          groupedData['25-31'] = groupedData['25-31']! + value;
+        }
+      } catch (e) {
+        print('Error parsing date: $e');
+      }
+    });
+
+    return groupedData;
+  }
+
+  Future<void> _fetchPaymentsChartData() async {
+    // Implement the logic to fetch and parse data for the Payments chart
+    // For now, we'll use dummy data
+    Map<String, double> data = {
+      '2023-01': 100.0,
+      '2023-02': 200.0,
+      '2023-03': 150.0,
+      '2023-04': 300.0,
+      '2023-05': 250.0,
+      '2023-06': 350.0,
+      '2023-07': 400.0,
+    };
+
+    setState(() {
+      _barChartData = _generateBarChartData(data);
+      _totalAmount = data.values.fold(0.0, (sum, item) => sum + item);
+    });
+  }
+
+  List<BarChartGroupData> _generateBarChartData(Map<String, double> data) {
+    List<BarChartGroupData> barGroups = [];
+    int index = 0;
+    data.forEach((key, value) {
+      barGroups.add(
+        BarChartGroupData(
+          x: index,
+          barRods: [BarChartRodData(toY: value, color: Colors.yellow)],
+        ),
+      );
+      index++;
+    });
+    return barGroups;
   }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        appBar: _buildAppBar(),
-        backgroundColor: Colors.grey[800],
-        body: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(110),
+          child: Container(
+            padding: EdgeInsets.all(8.0),
+            decoration: BoxDecoration(
+              color: Colors.grey[700],
+            ),
             child: Column(
               children: [
-                _buildSelectPeriodRange(),
-                const SizedBox(height: 10),
-                _buildChartTypeSelector(),
-                const SizedBox(height: 10),
-                _buildChart(_selectedChart),
+                Text(
+                  'Relatórios',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 26),
+                ),
+                SizedBox(height: 5),
+                _periodButtons(),
               ],
             ),
           ),
         ),
+        backgroundColor: Colors.grey[800],
+        body: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_selectedPeriod == 'Mês') _monthDropdown(),
+              if (_selectedPeriod == 'Ano') _yearDropdown(),
+              const SizedBox(height: 10),
+              _chartType(),
+              const SizedBox(height: 10),
+              _buildChart(),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildSelectPeriodRange() {
+  Widget _periodButtons() {
+    double width = 120;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        button(
+          'Semana',
+          width,
+          Colors.black,
+          _selectedPeriod == 'Semana' ? Colors.yellow[700] : Colors.yellow,
+          () {
+            setState(() {
+              _selectedPeriod = 'Semana';
+              _fetchChartData();
+            });
+          },
+        ),
+        button(
+          'Mês',
+          width,
+          Colors.black,
+          _selectedPeriod == 'Mês' ? Colors.yellow[700] : Colors.yellow,
+          () {
+            setState(() {
+              _selectedPeriod = 'Mês';
+              _fetchChartData();
+            });
+          },
+        ),
+        button(
+          'Ano',
+          width,
+          Colors.black,
+          _selectedPeriod == 'Ano' ? Colors.yellow[700] : Colors.yellow,
+          () {
+            setState(() {
+              _selectedPeriod = 'Ano';
+              _fetchChartData();
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _monthDropdown() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Text(
-          'Selecionar $_selectedPeriod: ',
-          style: TextStyle(
-              color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          'Selecionar Período:',
+          style: TextStyle(color: Colors.white, fontSize: 16),
         ),
-        const SizedBox(width: 15),
-        DropdownButton<String>(
-          value: _selectedPeriodItem,
+        SizedBox(width: 10),
+        DropdownButton<int>(
+          value: _selectedMonth,
           dropdownColor: Colors.grey[700],
-          items: _currentPeriodItems.map((String item) {
-            return DropdownMenuItem<String>(
-              value: item,
+          items: List.generate(12, (index) {
+            return DropdownMenuItem(
+              value: index + 1,
               child: Text(
-                item,
-                style: const TextStyle(color: Colors.white),
+                DateFormat('MMMM', 'pt_BR').format(DateTime(0, index + 1)),
+                style: TextStyle(color: Colors.white),
               ),
             );
-          }).toList(),
-          onChanged: (String? newValue) {
+          }),
+          onChanged: (value) {
             setState(() {
-              _selectedPeriodItem = newValue!;
+              _selectedMonth = value!;
+              _fetchChartData();
             });
           },
-          borderRadius: BorderRadius.circular(8),
-          menuMaxHeight: 150,
         ),
       ],
     );
   }
 
-  PreferredSize _buildAppBar() {
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(100),
-      child: Container(
-        padding: const EdgeInsets.all(5.0),
-        decoration: BoxDecoration(color: Colors.grey[700]),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Relatórios',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 26,
-              ),
-            ),
-            _buildPeriodSelector(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPeriodSelector() {
+  Widget _yearDropdown() {
+    int currentYear = DateTime.now().year;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        ..._periodOptions.map((period) => ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                fixedSize: const Size(100, 40),
-                backgroundColor: _selectedPeriod == period
-                    ? Colors.yellow[700]
-                    : Colors.yellow[500],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: () => setState(() {
-                _selectedPeriod = period;
-                _selectedPeriodItem = _currentPeriodItems.first;
-              }),
+        Text(
+          'Selecionar Período:',
+          style: TextStyle(color: Colors.white, fontSize: 16),
+        ),
+        SizedBox(width: 10),
+        DropdownButton<int>(
+          value: _selectedYear,
+          dropdownColor: Colors.grey[700],
+          items: List.generate(5, (index) {
+            int year = currentYear - index;
+            return DropdownMenuItem(
+              value: year,
               child: Text(
-                period,
-                style: TextStyle(
-                  color:
-                      _selectedPeriod == period ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
+                year.toString(),
+                style: TextStyle(color: Colors.white),
               ),
-            )),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.yellow[500],
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          onPressed: () {},
-          child: const Icon(Icons.more_horiz, color: Colors.black),
+            );
+          }),
+          onChanged: (value) {
+            setState(() {
+              _selectedYear = value!;
+              _fetchChartData();
+            });
+          },
         ),
       ],
     );
   }
 
-  Widget _buildChartTypeSelector() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children:
-          _chartOptions.map((option) => _buildChartTypeButton(option)).toList(),
-    );
-  }
-
-  Widget _buildChartTypeButton(String label) {
-    return ElevatedButton(
-      onPressed: () => setState(() => _selectedChart = label),
-      style: ElevatedButton.styleFrom(
-        fixedSize: const Size(180, 40),
-        backgroundColor:
-            _selectedChart == label ? Colors.grey[600] : Colors.grey[700],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.0),
-        ),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(color: Colors.white, fontSize: 16),
-      ),
-    );
-  }
-
-  Widget _buildChart(String chartLabel) {
-    const titleStyle = TextStyle(
-      color: Colors.white,
-      fontWeight: FontWeight.bold,
-      fontSize: 14,
-    );
-
+  Widget _buildChart() {
     return Column(
       children: [
         Container(
+          height: 450,
+          padding: EdgeInsets.all(12.0),
           width: double.infinity,
-          height: 400,
-          padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
             color: Colors.grey[700],
             borderRadius: BorderRadius.circular(8.0),
@@ -256,39 +289,55 @@ class _ChartsScreenState extends State<ChartsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                chartLabel,
-                style: const TextStyle(
+                'Período: ${_selectedPeriod == 'Ano' ? _selectedYear : DateFormat('MMMM', 'pt_BR').format(DateTime(0, _selectedMonth))}',
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Período: $_selectedPeriod',
-                style: const TextStyle(
-                  color: Colors.white70,
                   fontSize: 16,
                 ),
               ),
-              const SizedBox(height: 20),
-              Expanded(
+              SizedBox(height: 20),
+              Flexible(
                 child: BarChart(
                   BarChartData(
-                    alignment: BarChartAlignment.spaceAround,
-                    barGroups: _generateBarChartData(),
-                    borderData: FlBorderData(show: false),
+                    maxY: _selectedPeriod == 'Ano'
+                        ? 7000
+                        : _selectedPeriod == 'Mês'
+                            ? 1000
+                            : 500,
+                    minY: _selectedPeriod == 'Ano'
+                        ? 100
+                        : _selectedPeriod == 'Mês'
+                            ? 100
+                            : 0,
+                    gridData: FlGridData(
+                      show: true,
+                      getDrawingHorizontalLine: (value) {
+                        return FlLine(
+                          color: Colors.white.withOpacity(0.1),
+                          strokeWidth: 1,
+                        );
+                      },
+                      getDrawingVerticalLine: (value) {
+                        return FlLine(
+                          color: Colors.white.withOpacity(0.1),
+                          strokeWidth: 1,
+                        );
+                      },
+                    ),
                     titlesData: FlTitlesData(
                       leftTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
-                          getTitlesWidget: (double value, TitleMeta meta) {
-                            return SideTitleWidget(
-                              axisSide: meta.axisSide,
-                              space: 4.0,
-                              child: Text(
-                                value.toInt().toString(),
-                                style: titleStyle,
-                              ),
+                          reservedSize: _selectedPeriod == 'Ano'
+                              ? 70
+                              : _selectedPeriod == 'Mês'
+                                  ? 70
+                                  : 50,
+                          getTitlesWidget: (value, meta) {
+                            return Text(
+                              'R\$ ${value.toInt()}',
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 12),
                             );
                           },
                         ),
@@ -296,33 +345,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
                       bottomTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
-                          getTitlesWidget: (double value, TitleMeta meta) {
-                            Widget text;
-                            switch (value.toInt()) {
-                              case 0:
-                                text = const Text('Seg', style: titleStyle);
-                                break;
-                              case 1:
-                                text = const Text('Ter', style: titleStyle);
-                                break;
-                              case 2:
-                                text = const Text('Qua', style: titleStyle);
-                                break;
-                              case 3:
-                                text = const Text('Qui', style: titleStyle);
-                                break;
-                              case 4:
-                                text = const Text('Sex', style: titleStyle);
-                                break;
-                              default:
-                                text = const Text('', style: titleStyle);
-                                break;
-                            }
-                            return SideTitleWidget(
-                              axisSide: meta.axisSide,
-                              space: 4.0,
-                              child: text,
-                            );
+                          reservedSize: 40,
+                          getTitlesWidget: (value, meta) {
+                            return _getBottomTitles(value);
                           },
                         ),
                       ),
@@ -333,44 +358,136 @@ class _ChartsScreenState extends State<ChartsScreen> {
                         sideTitles: SideTitles(showTitles: false),
                       ),
                     ),
+                    borderData: FlBorderData(
+                      show: true,
+                      border: Border(
+                        left: BorderSide(
+                            color: Colors.white.withOpacity(0.2), width: 1),
+                        bottom: BorderSide(
+                            color: Colors.white.withOpacity(0.2), width: 1),
+                        top: BorderSide.none,
+                        right: BorderSide.none,
+                      ),
+                    ),
+                    barGroups: _barChartData,
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Container(
-          width: double.infinity,
           height: 60,
-          padding: const EdgeInsets.all(16),
+          width: double.infinity,
           decoration: BoxDecoration(
             color: Colors.grey[700],
             borderRadius: BorderRadius.circular(8.0),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Total de $chartLabel ($_selectedPeriod): ',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Text(
-                'R\$ 0,00',
+          child: Center(
+            child: Text('Total: R\$ $_totalAmount',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
           ),
+        )
+      ],
+    );
+  }
+
+  Widget _getBottomTitles(double value) {
+    if (_selectedPeriod == 'Semana') {
+      const daysOfWeek = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+      if (value.toInt() >= 0 && value.toInt() < daysOfWeek.length) {
+        return Text(daysOfWeek[value.toInt()],
+            style: TextStyle(color: Colors.white));
+      }
+    } else if (_selectedPeriod == 'Mês') {
+      const monthRanges = ['1-6', '7-12', '13-18', '19-24', '25-31'];
+      if (value.toInt() >= 0 && value.toInt() < monthRanges.length) {
+        return Text(monthRanges[value.toInt()],
+            style: TextStyle(color: Colors.white));
+      }
+    } else if (_selectedPeriod == 'Ano') {
+      const monthsOfYear = [
+        'Jan',
+        'Fev',
+        'Mar',
+        'Abr',
+        'Mai',
+        'Jun',
+        'Jul',
+        'Ago',
+        'Set',
+        'Out',
+        'Nov',
+        'Dez'
+      ];
+      if (value.toInt() >= 0 && value.toInt() < monthsOfYear.length) {
+        return Transform.rotate(
+          angle: -0.75, // Rotate the text by -0.5 radians (~28.65 degrees)
+          child: Text(monthsOfYear[value.toInt()],
+              style: TextStyle(color: Colors.white)),
+        );
+      }
+    }
+    return Text('');
+  }
+
+  Widget _chartType() {
+    double width = 180;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        button(
+          'Vendas',
+          width,
+          Colors.white,
+          _selectedChartType == 'Vendas' ? Colors.grey[600] : Colors.grey[700],
+          () {
+            setState(() {
+              _selectedChartType = 'Vendas';
+              _fetchChartData();
+            });
+          },
+        ),
+        button(
+          'Pagamentos',
+          width,
+          Colors.white,
+          _selectedChartType == 'Pagamentos'
+              ? Colors.grey[600]
+              : Colors.grey[700],
+          () {
+            setState(() {
+              _selectedChartType = 'Pagamentos';
+              _fetchChartData();
+            });
+          },
         ),
       ],
+    );
+  }
+
+  ElevatedButton button(String textLabel, double width, Color textColor,
+      Color? backgroundColor, VoidCallback onPressed) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        fixedSize: Size.fromWidth(width),
+        backgroundColor: backgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+      ),
+      child: Text(
+        textLabel,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }
