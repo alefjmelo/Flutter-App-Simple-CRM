@@ -5,7 +5,9 @@ import 'sales_screen.dart';
 import 'charts_screen.dart';
 
 class NavigationScreen extends StatefulWidget {
-  const NavigationScreen({super.key});
+  const NavigationScreen({
+    super.key,
+  });
 
   @override
   State<NavigationScreen> createState() => _NavigationScreenState();

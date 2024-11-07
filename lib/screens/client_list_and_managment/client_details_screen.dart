@@ -3,9 +3,9 @@ import 'package:pontodofrango/screens/navigation_screen.dart';
 import '../../models/client_model.dart';
 import '../../models/clientbill_model.dart';
 import '../../models/paymenthistory_model.dart';
-import '../../utils/bills_operations.dart';
-import '../../utils/client_operations.dart';
-import '../../utils/payment_history_operations.dart';
+import '../../utils/operations/bills_operations.dart';
+import '../../utils/operations/client_operations.dart';
+import '../../utils/operations/payment_history_operations.dart';
 import 'payment_screen.dart';
 
 class ClientDetailsScreen extends StatefulWidget {
@@ -43,65 +43,79 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: Colors.grey[800],
-        appBar: AppBar(
-          backgroundColor: Colors.grey[700],
-          title: const Text(
-            'Detalhes da Conta',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NavigationScreen(),
           ),
-          leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back,
-              color: Colors.white,
-              weight: 2.0,
+          (route) => false,
+        );
+      },
+      child: SafeArea(
+        child: Scaffold(
+          backgroundColor: Colors.grey[800],
+          appBar: AppBar(
+            backgroundColor: Colors.grey[700],
+            title: const Text(
+              'Detalhes da Conta',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24),
             ),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => NavigationScreen(),
-                ),
-              );
-            },
-          ),
-        ),
-        body: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.client.nome,
-                  style: const TextStyle(
-                    fontSize: 35,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+            leading: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                weight: 2.0,
+              ),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NavigationScreen(),
                   ),
-                ),
-                Text(
-                  'Endereço: ${widget.client.endereco}',
-                  style: const TextStyle(fontSize: 18, color: Colors.white),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Número: ${widget.client.numero}',
-                  style: const TextStyle(fontSize: 18, color: Colors.white),
-                ),
-                const SizedBox(height: 20),
-                _buildPaymentHistoryButton(context),
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: 400,
-                  child: _buildBillsSection(),
-                ),
-                const SizedBox(height: 20),
-                _buildActionButtons(context),
-              ],
+                );
+              },
+            ),
+          ),
+          body: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.client.nome,
+                    style: const TextStyle(
+                      fontSize: 35,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    'Endereço: ${widget.client.endereco}',
+                    style: const TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Número: ${widget.client.numero}',
+                    style: const TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildPaymentHistoryButton(context),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 400,
+                    child: _buildBillsSection(),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildActionButtons(context),
+                ],
+              ),
             ),
           ),
         ),
@@ -155,7 +169,7 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen> {
                       ),
                       const Text(
                         'Histórico de Pagamentos',
-                        style: TextStyle(color: Colors.white, fontSize: 20),
+                        style: TextStyle(color: Colors.white, fontSize: 18),
                       ),
                     ],
                   ),
@@ -216,14 +230,14 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen> {
                                               'Total da Conta: R\$ ${payment.totalBill.toStringAsFixed(2)}'),
                                           Text(
                                               'Valor Pago: R\$ ${payment.amountPaid.toStringAsFixed(2)}'),
-                                          if (payment.totalBill >
-                                              payment.amountPaid)
+                                          if (payment.debit != null &&
+                                              payment.debit! > 0)
                                             Text(
-                                                'Saldo Devedor: R\$ ${(payment.totalBill - payment.amountPaid).toStringAsFixed(2)}'),
-                                          if (payment.amountPaid >
-                                              payment.totalBill)
+                                                'Saldo Devedor: R\$ ${payment.debit!.toStringAsFixed(2)}'),
+                                          if (payment.credit != null &&
+                                              payment.credit! > 0)
                                             Text(
-                                                'Crédito em Conta: R\$ ${(payment.amountPaid - payment.totalBill).toStringAsFixed(2)}'),
+                                                'Crédito em Conta: R\$ ${payment.credit!.toStringAsFixed(2)}'),
                                         ],
                                       ),
                                     ),
@@ -380,29 +394,35 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => FutureBuilder<List<Bill>>(
-                  future: fetchBillsForClient(widget.client.code),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (snapshot.hasError) {
-                      return Center(child: Text('Error: ${snapshot.error}'));
-                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return PaymentScreen(client: widget.client, totalBill: 0);
-                    } else {
-                      final total = snapshot.data!
-                          .fold<double>(0, (sum, item) => sum + item.value);
-                      return PaymentScreen(
-                          client: widget.client, totalBill: total);
-                    }
-                  },
+          onPressed: () async {
+            // Fetch the latest client data
+            final updatedClient =
+                await getClientWithBalances(widget.client.code);
+            if (context.mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FutureBuilder<List<Bill>>(
+                    future: fetchBillsForClient(updatedClient.code),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (snapshot.hasError) {
+                        return Center(child: Text('Error: ${snapshot.error}'));
+                      } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return PaymentScreen(
+                            client: updatedClient, totalBill: 0);
+                      } else {
+                        final total = snapshot.data!
+                            .fold<double>(0, (sum, item) => sum + item.value);
+                        return PaymentScreen(
+                            client: updatedClient, totalBill: total);
+                      }
+                    },
+                  ),
                 ),
-              ),
-            );
+              );
+            }
           },
           child: Text(
             'Pagar',

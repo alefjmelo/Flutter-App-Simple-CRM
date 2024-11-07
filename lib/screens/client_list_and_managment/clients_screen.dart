@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pontodofrango/utils/client_operations.dart';
+import 'package:pontodofrango/utils/operations/client_operations.dart';
 import '../../models/client_model.dart';
 import 'client_details_screen.dart';
 import 'manager_dialog.dart';
@@ -34,30 +34,33 @@ class _ClientScreenState extends State<ClientsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: PreferredSize(
-            preferredSize: Size.fromHeight(100),
-            child: Container(
-              padding: EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                color: Colors.grey[700],
-              ),
-              child: Text('Lista de Clientes',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 26)),
-            )),
-        backgroundColor: Colors.grey[800],
-        body: Column(
-          children: [
-            Expanded(child: _buildClientListView()),
-          ],
+    return PopScope(
+      canPop: false,
+      child: SafeArea(
+        child: Scaffold(
+          appBar: PreferredSize(
+              preferredSize: Size.fromHeight(100),
+              child: Container(
+                padding: EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: Colors.grey[700],
+                ),
+                child: Text('Lista de Clientes',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 26)),
+              )),
+          backgroundColor: Colors.grey[800],
+          body: Column(
+            children: [
+              Expanded(child: _buildClientListView()),
+            ],
+          ),
+          floatingActionButton: isDialogOpen ? null : _buildFloatingButton(),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         ),
-        floatingActionButton: isDialogOpen ? null : _buildFloatingButton(),
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
     );
   }

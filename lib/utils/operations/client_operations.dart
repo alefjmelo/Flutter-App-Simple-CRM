@@ -1,7 +1,7 @@
 import 'dart:math';
 
-import '../models/client_model.dart';
-import 'client_database.dart';
+import '../../models/client_model.dart';
+import '../database/client_database.dart';
 
 Future<void> addClient(name, phoneNumber, address) async {
   List<Client> existingClients = await ClientDataBase().getClients();

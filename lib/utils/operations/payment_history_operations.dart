@@ -1,14 +1,16 @@
-import '../models/paymenthistory_model.dart';
-import 'payment_history_database.dart';
+import '../../models/paymenthistory_model.dart';
+import '../database/payment_history_database.dart';
 
 // Insert a new payment history record
 Future<void> addPaymentHistory(int clientCode, String paymentDate,
-    double totalBill, double amountPaid) async {
+    double totalBill, double amountPaid, double debit, double credit) async {
   PaymentHistory paymentHistory = PaymentHistory(
     clientCode: clientCode,
     paymentDate: paymentDate,
     totalBill: totalBill,
     amountPaid: amountPaid,
+    debit: debit,
+    credit: credit,
   );
 
   await PaymentHistoryDatabase.instance

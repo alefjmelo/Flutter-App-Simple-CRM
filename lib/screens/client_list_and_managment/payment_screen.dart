@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pontodofrango/models/client_model.dart';
 import 'package:pontodofrango/screens/client_list_and_managment/client_details_screen.dart';
-import 'package:pontodofrango/utils/bills_operations.dart';
-import 'package:pontodofrango/utils/payment_history_operations.dart';
+import 'package:pontodofrango/utils/operations/bills_operations.dart';
+import 'package:pontodofrango/utils/operations/payment_history_operations.dart';
 import 'package:pontodofrango/utils/showCustomOverlay.dart';
 
-import '../../utils/client_operations.dart';
+import '../../utils/operations/client_operations.dart';
 
 class CurrencyInputFormatter extends TextInputFormatter {
   @override
@@ -48,11 +48,19 @@ class PaymentScreenState extends State<PaymentScreen> {
   String searchText = '';
   double creditoConta = 0;
   double saldoDevedor = 0;
+  late double suggestedPayment;
 
   @override
   void initState() {
     super.initState();
     _valueController.addListener(_updateHintVisibility);
+    creditoConta = widget.client.creditoConta;
+    saldoDevedor = widget.client.saldoDevedor;
+    _calculateSuggestedPayment();
+  }
+
+  void _calculateSuggestedPayment() {
+    suggestedPayment = widget.totalBill + saldoDevedor - creditoConta;
   }
 
   @override
@@ -232,7 +240,7 @@ class PaymentScreenState extends State<PaymentScreen> {
 
   _showClientName() {
     return Container(
-      height: saldoDevedor > 0 || creditoConta > 0 ? 150 : 200,
+      height: saldoDevedor > 0 || creditoConta > 0 ? 200 : 180,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.grey[700],
@@ -272,55 +280,28 @@ class PaymentScreenState extends State<PaymentScreen> {
             ),
           ),
           if (widget.client.creditoConta > 0 && widget.client.saldoDevedor == 0)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Crédito: R\$ ${widget.client.creditoConta.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  'Pagamento sugerido: R\$ ${(widget.totalBill - widget.client.creditoConta).toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          if (widget.client.saldoDevedor > 0 && widget.client.creditoConta == 0)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Saldo Devedor: R\$ ${widget.client.saldoDevedor.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  'Pagamento sugerido: R\$ ${(widget.client.saldoDevedor + widget.totalBill).toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          if (widget.client.creditoConta > 0 && widget.client.saldoDevedor > 0)
             Text(
-              'Pagamento sugerido: R\$ ${(widget.client.creditoConta + widget.client.saldoDevedor + widget.totalBill).toStringAsFixed(2)}',
-              style: const TextStyle(
+              'Crédito: R\$ ${widget.client.creditoConta.toStringAsFixed(2)}',
+              style: TextStyle(
                 fontSize: 18,
                 color: Colors.white,
               ),
             ),
+          if (widget.client.saldoDevedor > 0 && widget.client.creditoConta == 0)
+            Text(
+              'Saldo Devedor: R\$ ${widget.client.saldoDevedor.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.white,
+              ),
+            ),
+          Text(
+            'Pagamento sugerido: R\$ ${(suggestedPayment).toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.white,
+            ),
+          ),
         ],
       ),
     );
@@ -333,17 +314,14 @@ class PaymentScreenState extends State<PaymentScreen> {
 
     double newCreditBalance = 0.0;
     double newDebitBalance = 0.0;
-    double suggestedPayment = widget.totalBill +
-        widget.client.saldoDevedor -
-        widget.client.creditoConta;
 
     // Calculate new balances
     if (value > suggestedPayment) {
       newCreditBalance = value - suggestedPayment;
-      widget.client.saldoDevedor = newDebitBalance; // Maintain existing debt
+      widget.client.saldoDevedor = 0.0;
     } else {
       newDebitBalance = suggestedPayment - value;
-      widget.client.creditoConta = newCreditBalance; // Maintain existing credit
+      widget.client.creditoConta = 0.0;
     }
 
     try {
@@ -351,8 +329,10 @@ class PaymentScreenState extends State<PaymentScreen> {
       await addPaymentHistory(
         widget.client.code,
         _selectedDate,
-        widget.totalBill,
+        suggestedPayment,
         value,
+        newDebitBalance,
+        newCreditBalance,
       );
 
       // Update client balances in database
@@ -367,18 +347,13 @@ class PaymentScreenState extends State<PaymentScreen> {
 
       if (!mounted) return;
 
-      // Fetch updated client data
-      final updatedClient = await getClientWithBalances(widget.client.code);
-
-      if (!mounted) return;
-
       showCustomOverlay(context, 'Pagamento registrado com sucesso.');
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => ClientDetailsScreen(
-            client: updatedClient,
+            client: widget.client,
           ),
         ),
       );

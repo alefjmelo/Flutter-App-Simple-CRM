@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pontodofrango/utils/showCustomOverlay.dart';
 import '../models/client_model.dart';
-import '../utils/bills_operations.dart';
-import '../utils/client_operations.dart';
+import '../utils/operations/bills_operations.dart';
+import '../utils/operations/client_operations.dart';
 
 class CurrencyInputFormatter extends TextInputFormatter {
   @override

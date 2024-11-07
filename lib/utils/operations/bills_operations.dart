@@ -1,5 +1,5 @@
-import '../models/clientbill_model.dart';
-import 'bills_database.dart';
+import '../../models/clientbill_model.dart';
+import '../database/bills_database.dart';
 
 // Insert a new bill
 Future<void> addBill(
@@ -23,22 +23,24 @@ Future<void> removeBill(int clientCode, String description, String date) async {
   await BillDatabaseHelper().deleteBill(clientCode, description, date);
 }
 
-// Delete all bills
+// Update removeAllBillsForClient to save history first
 Future<void> removeAllBillsForClient(int clientCode) async {
-  await BillDatabaseHelper().deleteAllBillsForClient(clientCode);
+  final db = BillDatabaseHelper();
+  await db.moveBillsToHistory(clientCode);
+  await db.deleteAllBillsForClient(clientCode);
 }
 
 // Retrieve total amount for the current week
-Future<Map<String, double>> getTotalAmountForWeek() async {
+Future<Map<String, double>> getTotalAmountForWeekBills() async {
   return await BillDatabaseHelper().getTotalAmountForWeek();
 }
 
 // Retrieve total amount for a specific month
-Future<Map<String, double>> getTotalAmountForMonth(int month) async {
+Future<Map<String, double>> getTotalAmountForMonthBills(int month) async {
   return await BillDatabaseHelper().getTotalAmountForMonth(month);
 }
 
 // Retrieve total amount for a specific year
-Future<Map<String, double>> getTotalAmountForYear(int year) async {
+Future<Map<String, double>> getTotalAmountForYearBills(int year) async {
   return await BillDatabaseHelper().getTotalAmountForYear(year);
 }

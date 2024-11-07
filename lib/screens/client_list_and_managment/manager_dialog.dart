@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_masked_text2/flutter_masked_text2.dart';
-import 'package:pontodofrango/utils/client_operations.dart';
+import 'package:pontodofrango/utils/operations/client_operations.dart';
 import 'package:pontodofrango/utils/showCustomOverlay.dart';
 import '../../models/client_model.dart';
 

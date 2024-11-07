@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import '../utils/bills_operations.dart';
-import '../utils/payment_history_operations.dart';
+import '../utils/operations/bills_operations.dart';
+import '../utils/operations/payment_history_operations.dart';
 
 class ChartsScreen extends StatefulWidget {
   const ChartsScreen({super.key});
@@ -54,12 +54,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
   Future<void> _fetchBillsChartData() async {
     Map<String, double> data;
     if (_selectedPeriod == 'Semana') {
-      data = await getTotalAmountForWeek();
+      data = await getTotalAmountForWeekBills();
     } else if (_selectedPeriod == 'Mês') {
-      data = await getTotalAmountForMonth(_selectedMonth);
+      data = await getTotalAmountForMonthBills(_selectedMonth);
       data = _groupDataByMonthRanges(data);
     } else {
-      data = await getTotalAmountForYear(_selectedYear);
+      data = await getTotalAmountForYearBills(_selectedYear);
     }
 
     setState(() {

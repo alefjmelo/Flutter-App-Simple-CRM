@@ -33,6 +33,8 @@ class PaymentHistoryDatabase {
         paymentDate TEXT,
         totalBill REAL,
         amountPaid REAL,
+        debit REAL,
+        credit REAL,
         FOREIGN KEY(clientCode) REFERENCES clients(code)
       )
     ''');

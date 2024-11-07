@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/clientbill_model.dart';
+import '../../models/clientbill_model.dart';
 
 class BillDatabaseHelper {
   static final BillDatabaseHelper _instance = BillDatabaseHelper._internal();
@@ -29,6 +29,16 @@ class BillDatabaseHelper {
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE bills(
+        clientCode INTEGER,
+        description TEXT,
+        value REAL,
+        date TEXT,
+        FOREIGN KEY(clientCode) REFERENCES clients(code)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE bills_history(
         clientCode INTEGER,
         description TEXT,
         value REAL,
@@ -74,6 +84,23 @@ class BillDatabaseHelper {
     );
   }
 
+  Future<void> moveBillsToHistory(int clientCode) async {
+    Database db = await database;
+    await db.transaction((txn) async {
+      // Get all bills for the client
+      final List<Map<String, dynamic>> bills = await txn.query(
+        'bills',
+        where: 'clientCode = ?',
+        whereArgs: [clientCode],
+      );
+
+      // Insert bills into history
+      for (var bill in bills) {
+        await txn.insert('bills_history', bill);
+      }
+    });
+  }
+
   Future<Map<String, double>> getTotalAmountForWeek() async {
     Database db = await database;
     DateTime now = DateTime.now();
@@ -84,16 +111,19 @@ class BillDatabaseHelper {
     for (int i = 0; i < 7; i++) {
       DateTime day = startOfWeek.add(Duration(days: i));
       String dayStr = DateFormat('dd/MM/yyyy').format(day);
-      final List<Map<String, dynamic>> result = await db.rawQuery('''
-        SELECT SUM(value) as totalAmount
-        FROM bills
+
+      final List<Map<String, dynamic>> combinedBills = await db.rawQuery('''
+        SELECT CAST(COALESCE(SUM(CAST(value AS REAL)), 0) AS REAL) as totalAmount
+        FROM (
+          SELECT value, date FROM bills
+          UNION ALL
+          SELECT value, date FROM bills_history
+        )
         WHERE date = ?
       ''', [dayStr]);
 
-      dailyTotals[dayStr] =
-          result.isNotEmpty && result[0]['totalAmount'] != null
-              ? result[0]['totalAmount'] as double
-              : 0.0;
+      double total = (combinedBills[0]['totalAmount'] as num).toDouble();
+      dailyTotals[dayStr] = total;
     }
 
     return dailyTotals;
@@ -110,16 +140,19 @@ class BillDatabaseHelper {
     for (int i = 0; i < endOfMonth.day; i++) {
       DateTime day = startOfMonth.add(Duration(days: i));
       String dayStr = DateFormat('dd/MM/yyyy').format(day);
-      final List<Map<String, dynamic>> result = await db.rawQuery('''
-        SELECT SUM(value) as totalAmount
-        FROM bills
+
+      final List<Map<String, dynamic>> combinedBills = await db.rawQuery('''
+        SELECT CAST(COALESCE(SUM(CAST(value AS REAL)), 0) AS REAL) as totalAmount
+        FROM (
+          SELECT value, date FROM bills
+          UNION ALL
+          SELECT value, date FROM bills_history
+        )
         WHERE date = ?
       ''', [dayStr]);
 
-      dailyTotals[dayStr] =
-          result.isNotEmpty && result[0]['totalAmount'] != null
-              ? result[0]['totalAmount'] as double
-              : 0.0;
+      double total = (combinedBills[0]['totalAmount'] as num).toDouble();
+      dailyTotals[dayStr] = total;
     }
 
     return dailyTotals;
@@ -137,15 +170,19 @@ class BillDatabaseHelper {
     }
 
     final List<Map<String, dynamic>> result = await db.rawQuery('''
-    SELECT date, SUM(value) as totalAmount
-    FROM bills
-    WHERE SUBSTR(date, 7, 4) = ?
-    GROUP BY date
-  ''', [year.toString()]);
+      SELECT date, CAST(SUM(CAST(value AS REAL)) AS REAL) as totalAmount
+      FROM (
+        SELECT value, date FROM bills
+        UNION ALL
+        SELECT value, date FROM bills_history
+      )
+      WHERE SUBSTR(date, 7, 4) = ?
+      GROUP BY date
+    ''', [year.toString()]);
 
     for (var row in result) {
       String dateStr = row['date'];
-      double totalAmount = row['totalAmount'] ?? 0.0;
+      double totalAmount = (row['totalAmount'] as num).toDouble();
       DateTime date = DateFormat('dd/MM/yyyy').parse(dateStr);
       String monthName =
           DateFormat('MMMM', 'pt_BR').format(DateTime(year, date.month, 1));

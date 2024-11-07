@@ -3,12 +3,16 @@ class PaymentHistory {
   final String paymentDate;
   double totalBill;
   double amountPaid;
+  double? debit;
+  double? credit;
 
   PaymentHistory({
     required this.clientCode,
     required this.paymentDate,
     required this.totalBill,
     required this.amountPaid,
+    this.debit,
+    this.credit,
   });
 
   Map<String, dynamic> toMap() {
@@ -17,6 +21,8 @@ class PaymentHistory {
       'paymentDate': paymentDate,
       'totalBill': totalBill,
       'amountPaid': amountPaid,
+      'debit': debit,
+      'credit': credit,
     };
   }
 
@@ -26,6 +32,8 @@ class PaymentHistory {
       paymentDate: map['paymentDate'],
       totalBill: map['totalBill'],
       amountPaid: map['amountPaid'],
+      debit: map['debit'],
+      credit: map['credit'],
     );
   }
 }
