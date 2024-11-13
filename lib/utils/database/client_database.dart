@@ -98,4 +98,23 @@ class ClientDataBase {
 
     return Client.fromMap(maps.first);
   }
+
+  Future<int> editClientData(int code,
+      {String? nome, String? numero, String? endereco}) async {
+    Database db = await database;
+    Map<String, dynamic> updates = {};
+
+    if (nome != null) updates['nome'] = nome;
+    if (numero != null) updates['numero'] = numero;
+    if (endereco != null) updates['endereco'] = endereco;
+
+    if (updates.isEmpty) return 0;
+
+    return await db.update(
+      'clients',
+      updates,
+      where: 'code = ?',
+      whereArgs: [code],
+    );
+  }
 }

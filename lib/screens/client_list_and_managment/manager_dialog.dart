@@ -27,12 +27,33 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
       MaskedTextController(mask: '(00) 00000-0000');
   final TextEditingController _addressController = TextEditingController();
 
+  bool _noPhone = false;
+  bool _noAddress = false;
+
   bool _isValidPhoneNumber(String phoneNumber) {
     final RegExp phoneRegExp = RegExp(r'^\(\d{2}\) \d{5}-\d{4}$');
     return phoneRegExp.hasMatch(phoneNumber);
   }
 
+  void _resetEditState() {
+    _selectedClientCode = 0;
+    _searchText = '';
+    _searchController.clear();
+    _nameController.clear();
+    _phoneController.clear();
+    _addressController.clear();
+    _filteredClients.clear();
+    _noPhone = false;
+    _noAddress = false;
+    _phoneErrorMessage = null;
+    _nameErrorMessage = null;
+    _addressErrorMessage = null;
+  }
+
   void _setDialogState(String state) {
+    if (state == 'search') {
+      _resetEditState();
+    }
     setState(() {
       _dialogState = state;
     });
@@ -40,8 +61,10 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
 
   Future<void> _handleAddClient() async {
     String name = _nameController.text;
-    String phoneNumber = _phoneController.text;
-    String address = _addressController.text;
+    String phoneNumber =
+        _noPhone ? 'Sem número de telefone' : _phoneController.text;
+    String address =
+        _noAddress ? 'Sem endereço cadastrado' : _addressController.text;
 
     if (_validateInputs(name, phoneNumber, address)) {
       await addClient(name, phoneNumber, address);
@@ -72,21 +95,49 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
     });
   }
 
+  Future<void> _handleEditClient() async {
+    String name = _nameController.text;
+    String phoneNumber =
+        _noPhone ? 'Sem número de telefone' : _phoneController.text;
+    String address =
+        _noAddress ? 'Sem endereço cadastrado' : _addressController.text;
+
+    if (_validateInputs(name, phoneNumber, address)) {
+      await editClientData(_selectedClientCode,
+          name: name, phoneNumber: phoneNumber, address: address);
+      if (!mounted) return;
+      widget.onClientChanged();
+      Navigator.of(context).pop();
+      showCustomOverlay(context, 'Cliente Atualizado!');
+    }
+  }
+
+  void _prepareEditDialog(Client client) {
+    _selectedClientCode = client.code;
+    _nameController.text = client.nome;
+    _noPhone = client.numero == 'Sem número de telefone';
+    _phoneController.text = _noPhone ? '' : client.numero;
+    _noAddress = client.endereco == 'Sem endereço cadastrado';
+    _addressController.text = _noAddress ? '' : client.endereco;
+    _setDialogState('edit');
+  }
+
   bool _validateInputs(String name, String phoneNumber, String address) {
     bool isValid = true;
 
     setState(() {
       _nameErrorMessage = name.isEmpty ? 'Nome não pode estar vazio' : null;
-      _phoneErrorMessage = !_isValidPhoneNumber(phoneNumber)
+      _phoneErrorMessage = !_noPhone && !_isValidPhoneNumber(phoneNumber)
           ? 'Número Incorreto. Tente novamente'
           : null;
-      _addressErrorMessage =
-          address.isEmpty ? 'Endereço não pode estar vazio' : null;
+      _addressErrorMessage = !_noAddress && address.isEmpty
+          ? 'Endereço não pode estar vazio'
+          : null;
     });
 
     isValid = _nameErrorMessage == null &&
-        _phoneErrorMessage == null &&
-        _addressErrorMessage == null;
+        (_noPhone || _phoneErrorMessage == null) &&
+        (_noAddress || _addressErrorMessage == null);
 
     return isValid;
   }
@@ -103,7 +154,11 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
               ? _buildAddDialog()
               : _dialogState == 'remove'
                   ? _buildRemoveDialog()
-                  : _buildInitialDialog(),
+                  : _dialogState == 'edit'
+                      ? _buildEditDialog()
+                      : _dialogState == 'search'
+                          ? _buildSearchDialog()
+                          : _buildInitialDialog(),
         ),
       ),
     );
@@ -118,8 +173,26 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
             _nameController, 'Nome do Cliente', _nameErrorMessage, 20),
         _buildTextField(_phoneController, 'Nº de Celular', _phoneErrorMessage,
             null, TextInputType.phone),
+        _buildCheckbox('Cliente não possui celular', _noPhone, (value) {
+          setState(() {
+            _noPhone = value ?? false;
+            if (_noPhone) {
+              _phoneController.text = '';
+            }
+          });
+        }),
         _buildTextField(
             _addressController, 'Endereço', _addressErrorMessage, 50),
+        _buildCheckbox('Cliente não possui endereço', _noAddress, (value) {
+          setState(() {
+            _noAddress = value ?? false;
+            if (_noAddress) {
+              _addressController.text = 'Sem endereço cadastrado';
+            } else {
+              _addressController.text = '';
+            }
+          });
+        }),
         SizedBox(height: 10),
         _buildActionButton('Concluir', _handleAddClient),
       ],
@@ -141,6 +214,76 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
     );
   }
 
+  Widget _buildSearchDialog() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () {
+                _resetEditState();
+                _setDialogState('initial');
+              },
+            ),
+            Text(
+              'Selecionar Cliente',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        _buildSearchField(),
+        SizedBox(height: 10),
+        if (_filteredClients.isNotEmpty) _buildClientList(),
+        SizedBox(height: 10),
+        if (_selectedClientCode != 0)
+          _buildActionButton('Confirmar Seleção', () {
+            Client selectedClient = _filteredClients
+                .firstWhere((client) => client.code == _selectedClientCode);
+            _prepareEditDialog(selectedClient);
+          }),
+      ],
+    );
+  }
+
+  Widget _buildEditDialog() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildDialogHeader('Editar Cliente'),
+        _buildTextField(
+            _nameController, 'Nome do Cliente', _nameErrorMessage, 20),
+        _buildTextField(_phoneController, 'Nº de Celular', _phoneErrorMessage,
+            null, TextInputType.phone),
+        _buildCheckbox('Cliente não possui celular', _noPhone, (value) {
+          setState(() {
+            _noPhone = value ?? false;
+            if (_noPhone) _phoneController.text = '';
+          });
+        }),
+        _buildTextField(
+            _addressController, 'Endereço', _addressErrorMessage, 50),
+        _buildCheckbox('Cliente não possui endereço', _noAddress, (value) {
+          setState(() {
+            _noAddress = value ?? false;
+            if (_noAddress) {
+              _addressController.text = 'Sem endereço cadastrado';
+            } else {
+              _addressController.text = '';
+            }
+          });
+        }),
+        SizedBox(height: 10),
+        _buildActionButton('Salvar Alterações', _handleEditClient),
+      ],
+    );
+  }
+
   Widget _buildInitialDialog() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 0),
@@ -148,6 +291,8 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildDialogButton('Adicionar Cliente', () => _setDialogState('add')),
+          SizedBox(height: 25),
+          _buildDialogButton('Editar Cliente', () => _setDialogState('search')),
           SizedBox(height: 25),
           _buildDialogButton(
               'Remover Cliente', () => _setDialogState('remove')),
@@ -175,17 +320,42 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
   Widget _buildTextField(
       TextEditingController controller, String hint, String? errorMessage,
       [int? textSizeLimit, TextInputType? keyboardType]) {
+    bool isDisabled = false;
+    if (controller == _phoneController) isDisabled = _noPhone;
+    if (controller == _addressController) isDisabled = _noAddress;
+
+    if (controller == _phoneController && _noPhone) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: TextEditingController(text: 'Sem número de telefone'),
+            enabled: false,
+            decoration: InputDecoration(
+              hintText: hint,
+              filled: true,
+              fillColor: Colors.grey[300],
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          SizedBox(height: 10),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextField(
           controller: controller,
+          enabled: !isDisabled,
           inputFormatters: [LengthLimitingTextInputFormatter(textSizeLimit)],
           keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: isDisabled ? Colors.grey[300] : Colors.white,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
@@ -248,7 +418,12 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
     return Padding(
       padding: const EdgeInsets.all(3.0),
       child: InkWell(
-        onTap: () => setState(() => _selectedClientCode = client.code),
+        onTap: () {
+          setState(() => _selectedClientCode = client.code);
+          if (_dialogState == 'edit') {
+            _prepareEditDialog(client);
+          }
+        },
         child: Container(
           width: double.infinity,
           padding: EdgeInsets.all(10),
@@ -291,6 +466,32 @@ class ClientManagerDialogsState extends State<ClientManagerDialogs> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       child: Text(label, style: TextStyle(color: Colors.black, fontSize: 18)),
+    );
+  }
+
+  Widget _buildCheckbox(
+      String label, bool value, void Function(bool?) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 5, bottom: 15),
+      child: Row(
+        children: [
+          SizedBox(
+            height: 24,
+            width: 24,
+            child: Checkbox(
+              value: value,
+              onChanged: onChanged,
+              fillColor:
+                  WidgetStateProperty.resolveWith((states) => Colors.white),
+              checkColor: Colors.black,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          SizedBox(width: 8),
+          Text(label, style: TextStyle(color: Colors.white, fontSize: 14)),
+        ],
+      ),
     );
   }
 }

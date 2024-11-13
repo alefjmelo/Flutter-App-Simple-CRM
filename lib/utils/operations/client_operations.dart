@@ -54,3 +54,14 @@ Future<void> updateClientBalance(
 Future<Client> getClientWithBalances(int code) async {
   return await ClientDataBase().getClientWithBalances(code);
 }
+
+// Edit client data
+Future<void> editClientData(int code,
+    {String? name, String? phoneNumber, String? address}) async {
+  await ClientDataBase().editClientData(
+    code,
+    nome: name,
+    numero: phoneNumber,
+    endereco: address,
+  );
+}

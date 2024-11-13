@@ -237,6 +237,8 @@ class SalesScreenState extends State<SalesScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        bool showClientsList = false; // Move this outside StatefulBuilder
+
         return StatefulBuilder(
           builder: (context, setState) {
             return Dialog(
@@ -292,11 +294,18 @@ class SalesScreenState extends State<SalesScreen> {
                               onPressed: () async {
                                 List<Client> allClients = await fetchClients();
                                 setState(() {
-                                  _clients = allClients.where((client) {
-                                    return client.nome
-                                        .toLowerCase()
-                                        .contains(searchText.toLowerCase());
-                                  }).toList();
+                                  _clients =
+                                      allClients; // Always show all clients first
+                                  if (searchText.isNotEmpty) {
+                                    // Only filter if there's search text
+                                    _clients = _clients.where((client) {
+                                      return client.nome
+                                          .toLowerCase()
+                                          .contains(searchText.toLowerCase());
+                                    }).toList();
+                                  }
+                                  showClientsList =
+                                      true; // Always show the list
                                 });
                               },
                             ),
@@ -304,7 +313,8 @@ class SalesScreenState extends State<SalesScreen> {
                         ),
                       ),
                       SizedBox(height: 10),
-                      if (_clients.isNotEmpty)
+                      if (showClientsList &&
+                          _clients.isNotEmpty) // Modify this line
                         Container(
                           height: 200,
                           decoration: BoxDecoration(

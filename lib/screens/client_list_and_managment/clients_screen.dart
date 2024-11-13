@@ -106,7 +106,7 @@ class _ClientScreenState extends State<ClientsScreen> {
           return const Center(
               child: Text(
             'Nenhum cliente encontrado.',
-            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ));
         } else {
           return _buildClientList(snapshot.data!);
